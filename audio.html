@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>マイクテスト</title>
+</head>
+<body>
+  <h1>マイクテスト</h1>
+  これは録音がうごく
+  <!-- https://qiita.com/ryoheiigushi/items/cf428366eae36144e91a -->
+  <button onclick="startAudio()">音声取得</button>
+  <button onclick="startMicTest()">録音開始</button>
+  <button onclick="stopMicTest()">音声確認</button><br>
+  <button onclick="sendAudio()">送信</button><br>
+  <audio id="playback_mictest" controls></audio>
+  <p id="mymsg">...</p>
+</body>
+<script>
+  // 録音の準備
+  let audioStream = null;
+  let micTestStream =  null;
+  let micTestRecorder =  null;
+  let micBlobUrl = null;
+  let micTestChunks = [];
+  const playbackMicTest =  document.getElementById('playback_mictest');
+  if (!navigator.mediaDevices) {
+    document.getElementById("mymsg").textContent = "mediaDevices is unavailable";
+  }
+  // -- 音声の取得 --
+  function startAudio() {
+    document.getElementById("mymsg").textContent = "startAudio";
+    if (!audioStream){
+      document.getElementById("mymsg").textContent = "going to getUserMedia";
+      // getUserMediaはpromise を返す
+      navigator.mediaDevices.getUserMedia({
+        video: false,
+        audio: true
+      })
+      .then(function (audio) { // promiseのresultをaudioStreamに格納
+        document.getElementById("mymsg").textContent = "going to getUserMedia 1";
+        audioStream = audio;
+        document.getElementById("mymsg").textContent = "going to getUserMedia 2";
+      })
+      .catch(function (error) { // error
+        console.error('mediaDevice.getUserMedia() error:', error);
+        document.getElementById("mymsg").textContent = "mediaDevice.getUserMedia() error:";
+        return;
+      });
+      document.getElementById("mymsg").textContent = "getUserMedia end";
+    }
+    document.getElementById("mymsg").textContent = "getUserMedia done";
+  }
+  // -- 録音開始 --
+  function startMicTest() {
+    micTestStream = new MediaStream();
+    micTestStream.addTrack(audioStream.getAudioTracks()[0]);
+    document.getElementById("mymsg").textContent = "start startMicTest 1";
+    const micTestOptions = {
+      mimeType : 'audio/webm; codecs=opus'
+    };
+    micTestRecorder = new MediaRecorder(micTestStream, micTestOptions);
+    micTestChunks = []; // 格納場所をクリア
+    document.getElementById("mymsg").textContent = "start startMicTest 2";
+    // 一定間隔で録音が区切られて、データが渡される。
+    micTestRecorder.ondataavailable = function(evt) {
+      console.log("type=" + evt.data.type + " size=" + evt.data.size);
+      micTestChunks.push(evt.data);
+    };
+    document.getElementById("mymsg").textContent = "start startMicTest 3";
+    micTestRecorder.start(1000);
+    console.log('start mic test');
+    document.getElementById("mymsg").textContent = "start startMicTest 4";
+  }
+  // -- 音声の確認 --
+  function stopMicTest() {
+    if (micTestRecorder) {
+      micTestRecorder.stop();
+      console.log("stop mic test");
+    }
+    micTestRecorder.onstop = function(evt) {
+      console.log('micTestRecorder.onstop(), so playback');
+      micTestRecorder = null;
+      playMicTest();
+    };
+
+    // マイクテスト再生
+    function playMicTest() {
+      // Blobの作成
+      const micTestBlob = new Blob(micTestChunks, { type: "audio/webm" });
+      // 再生できるようにURLを生成
+      micBlobUrl = window.URL.createObjectURL(micTestBlob);
+      if (micBlobUrl){
+        playbackMicTest.src = micBlobUrl;
+        // 再生終了時
+        playbackMicTest.onended = function() {
+          playbackMicTest.pause();
+          playbackMicTest.src = "";
+        };
+        // 再生
+        playbackMicTest.play();
+      }
+    };
+  }
+  function sendAudio() {
+    var handleSuccess = function(stream) {
+      var context = new AudioContext();
+      var input = context.createMediaStreamSource(stream)
+      var processor = context.createScriptProcessor(1024, 1, 1);
+
+      document.getElementById("mymsg").textContent = "1 connecting WebSocket...";
+
+      // WebSocketのコネクション
+      //var connection = new WebSocket('ws://192.168.1.23:8000/websocket/');
+      var connection = new WebSocket('wss://192.168.1.23:8000/websocket'); // HTTPS
+
+      connection.onopen = function(event){
+        document.getElementById("mymsg").textContent = "on open...";
+        console.log("Connected to WS server!");
+
+        const blob = new Blob(micTestChunks, { type: "audio/webm" });
+        //var blob = micTestChunks[0];
+        console.log("step5!");
+        console.log(typeof(blob));
+        console.log(Object.prototype.toString.call(blob));
+        console.log(blob.size);
+        console.log(blob.type);
+        const reader = new FileReader();
+        reader.readAsArrayBuffer(blob);
+        reader.onload = () => {
+          context.decodeAudioData(reader.result).then(buf => {
+            const b = buf.getChannelData(0);
+            console.log(b.buffer);
+            connection.send(b.buffer); // websocketで送る
+            console.log("sent");
+            connection.close();
+            console.log("closed");
+          });
+        }
+        //connection.send(blob.buffer); // websocketで送る
+      };
+
+      //connection.addEventListener("open", event => {
+      //  console.log("Connected to WS server!");
+      //  resolve();
+      //});
+
+      document.getElementById("mymsg").textContent = "2 connecting WebSocket done";
+      console.log("step2!");
+
+      // WebSocketのコネクション
+      input.connect(processor);
+      processor.connect(context.destination);
+
+      document.getElementById("mymsg").textContent = "3 connecting WebSocket done";
+      console.log("step3!");
+
+      //processor.onaudioprocess = function(e) {
+      //  var voice = e.inputBuffer.getChannelData(0);//
+      //  document.getElementById("mymsg").textContent = "5 connecting WebSocket done";
+      //  connection.send(voice.buffer); // websocketで送る
+      //};
+      document.getElementById("mymsg").textContent = "4 connecting WebSocket done";
+      console.log("step4!");
+    };
+
+    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      .then(handleSuccess)
+  }
+</script>
+  <a href="audio0.html">audio0.html</a>
+  <a href="audio.html">audio1.html</a>
+  <a href="audio2.html">audio2.html</a>
+  <a href="audio3.html">audio3.html</a>
+</html>
