@@ -6,10 +6,12 @@ import tornado.websocket
 import wave
 import numpy as np
 import json
+import subprocess
 
 SAMPLE_SIZE = 2
 SAMPLE_RATE = 48000
-PATH = '/home/pi/work/tornado/output.wav'
+#PATH = '/home/pi/work/tornado/output.wav'
+PATH = '/tmp/recv_wav_play.wav'
 
 # https://qiita.com/ninomiyt/items/001b496e067ebf216384
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
@@ -47,6 +49,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         self.voice.clear()
         print("closed")
 
+        command = ["play", PATH]
+        subprocess.call(command)
+
 class MyHandler(tornado.web.RequestHandler):
     def get(self):
         self.render('test_ws.html')
@@ -57,17 +62,12 @@ if __name__ == "__main__":
         (r"/websocket", WebSocketHandler)
     ])
 
-    print("0")
     http_server = tornado.httpserver.HTTPServer(app, ssl_options={
         "certfile": "web-server.crt",
         "keyfile":  "web-server.key",
     })
 
-    print("1")
     http_server.listen(8000)
-    #app.listen(8000)
-    print("2")
-    #tornado.ioloop.IOLoop.current().start()
+
     tornado.ioloop.IOLoop.instance().start()
-    print("3")
 
