@@ -3,10 +3,30 @@
 <head>
   <meta charset="utf-8">
   <title>マイクテスト</title>
+  <meta name="viewport" content="width=device-width">
+<style type="text/css">
+body {
+  font-family: sans-serif;
+}
+div.ltbtn3 {
+  display: inline-block;
+  width: 8em;
+  height: 8em;
+  text-align: center;
+  vertical-align: middle;
+  background-color: navy;
+  //padding: auto auto auto auto;
+  border: medium solid dimgray;
+  border-radius: 20%;
+  color: white;
+  font-weight: bold;
+  font-size: large;
+}
+</style>
 </head>
 <body>
-  <h1>マイクテスト</h1>
-  これは録音がうごく
+  <h1>トランシーバー{{ ipaddr }}</h1>
+  <div id="recbtn" class="ltbtn3">Rec</div><br>
   <!-- https://qiita.com/ryoheiigushi/items/cf428366eae36144e91a -->
   <button onclick="startAudio()">音声取得</button>
   <button onclick="startMicTest()">録音開始</button>
@@ -16,6 +36,23 @@
   <p id="mymsg">...</p>
 </body>
 <script>
+  let recbtn = document.getElementById("recbtn");
+  recbtn.addEventListener('mousedown', recdown);
+  recbtn.addEventListener('mouseup', recup);
+  recbtn.addEventListener('touchstart', recdown);
+  recbtn.addEventListener('touchend', recup);
+  window.addEventListener('load', startAudio);
+  function recdown(event) {
+    event.preventDefault();
+    recbtn.style.backgroundColor = 'red';
+    startMicTest();
+  }
+  function recup(event) {
+    event.preventDefault();
+    recbtn.style.backgroundColor = 'navy';
+    stopMicTest();
+    sendAudio();
+  }
   // 録音の準備
   let audioStream = null;
   let micTestStream =  null;
@@ -97,7 +134,7 @@
           playbackMicTest.src = "";
         };
         // 再生
-        playbackMicTest.play();
+        //playbackMicTest.play();
       }
     };
   }
