@@ -110,8 +110,7 @@
       document.getElementById("mymsg").textContent = "1 connecting WebSocket...";
 
       // WebSocketのコネクション
-      //var connection = new WebSocket('ws://192.168.1.23:8000/websocket/');
-      var connection = new WebSocket('wss://192.168.1.23:8000/websocket'); // HTTPS
+      var connection = new WebSocket('wss://{{ ipaddr }}:{{ port_num }}/websocket'); // HTTPS
 
       connection.onopen = function(event){
         document.getElementById("mymsg").textContent = "on open...";
@@ -167,8 +166,4 @@
       .then(handleSuccess)
   }
 </script>
-  <a href="audio0.html">audio0.html</a>
-  <a href="audio.html">audio1.html</a>
-  <a href="audio2.html">audio2.html</a>
-  <a href="audio3.html">audio3.html</a>
 </html>

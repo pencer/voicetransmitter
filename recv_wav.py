@@ -7,34 +7,28 @@ import wave
 import numpy as np
 import json
 import subprocess
+import socket
 
 SAMPLE_SIZE = 2
 SAMPLE_RATE = 48000
-#PATH = '/home/pi/work/tornado/output.wav'
 PATH = '/tmp/recv_wav_play.wav'
 
 # https://qiita.com/ninomiyt/items/001b496e067ebf216384
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
     # https://qiita.com/Hironsan/items/b9375e110dbb9bde7650
-    waiters = set()
-    logs = []
     def check_origin(self, origin):
         return True
     def open(self, *args, **kwargs):
         print("opened")
-        self.waiters.add(self)
-        self.write_message({'logs': self.logs})
         self.voice = []
 
     def on_message(self, message):
         print(f"on_message: {len(self.voice)}")
         #message = json.loads(message)
-        #self.logs.append(message)
         self.voice.append(np.frombuffer(message, dtype='float32'))
 
     def on_close(self):
         print("on_close")
-        self.waiters.remove(self)
         v = np.array(self.voice)
         v.flatten()
 
@@ -49,14 +43,30 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         self.voice.clear()
         print("closed")
 
-        command = ["play", PATH]
+        # Play .wav file
+        command = ["play", "-q", PATH]
         subprocess.call(command)
 
 class MyHandler(tornado.web.RequestHandler):
+
     def get(self):
-        self.render('test_ws.html')
+        global g_ipaddr
+        global g_port_num
+        self.render('audio.html', ipaddr=g_ipaddr, port_num=g_port_num)
 
 if __name__ == "__main__":
+
+    global g_ipaddr
+    global g_port_num
+
+    # Get host IP address
+    conn_if = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    conn_if.connect(("8.8.8.8", 80))
+    ipaddr = conn_if.getsockname()[0]
+    g_ipaddr = ipaddr
+    port_num = 8000
+    g_port_num = port_num
+
     app = tornado.web.Application([
         (r"/", MyHandler),
         (r"/websocket", WebSocketHandler)
@@ -67,7 +77,8 @@ if __name__ == "__main__":
         "keyfile":  "web-server.key",
     })
 
-    http_server.listen(8000)
+    http_server.listen(port_num)
+    print("Info: Listening to https://{}:{}".format(ipaddr, port_num))
 
     tornado.ioloop.IOLoop.instance().start()
 
