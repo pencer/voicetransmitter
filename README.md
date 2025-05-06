@@ -22,3 +22,27 @@
 
   Access to the server with "https://", port number 8000.
 
+3. Auto start using systemctl
+
+  Create a .service file, e.g.  /etc/systemd/system/voicetransmitter.service
+
+  ```
+  [Unit]
+  Description=My Node.js Daemon
+
+  [Service]
+  User=pi
+  Group=pi
+  Environment="NODE_PATH=/usr/local/lib/node_modules"
+  WorkingDirectory=/home/pi/work/voicetransmitter
+  ExecStart=/usr/bin/python3 /home/pi/work/voicetransmitter/recv_wav.py
+  Restart=always
+
+  [Install]
+  WantedBy=multi-user.target
+  ```
+
+  Enable the service
+
+  $ sudo systemctl enable voicetransmitter
+

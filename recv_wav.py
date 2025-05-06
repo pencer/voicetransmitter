@@ -29,12 +29,21 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def on_close(self):
         print("on_close")
+        vol_voice = 0.25
+        vol_noise = 0.06
+        vol_beep  = 0.1
+        beep_freq = 880 # Hz
         v = np.array(self.voice)
         v.flatten()
+
+        # Lower quality voice with noise
         v = v[::,::6] # 48kHz -> 8kHz
         size = v.shape[1]
+        vmax = np.max(v)
         noise = np.random.rand(1, size) - 0.5 # White noise
-        v = v * 4 + noise * 0.06
+        beep = np.sin(np.linspace(0, beep_freq*2*np.pi, SAMPLE_RATE))
+        beep = np.pad(beep, (0, size-SAMPLE_RATE)) # first one second only
+        v = v * vol_voice / vmax + noise * vol_noise + [beep * vol_beep]
 
         # バイナリに16ビットの整数に変換して保存
         arr = (v * 32767).astype(np.int16)
