@@ -10,7 +10,7 @@ import subprocess
 import socket
 
 SAMPLE_SIZE = 2
-SAMPLE_RATE = 48000
+SAMPLE_RATE = 8000 # 48000
 PATH = '/tmp/recv_wav_play.wav'
 
 # https://qiita.com/ninomiyt/items/001b496e067ebf216384
@@ -31,6 +31,10 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print("on_close")
         v = np.array(self.voice)
         v.flatten()
+        v = v[::,::6] # 48kHz -> 8kHz
+        size = v.shape[1]
+        noise = np.random.rand(1, size) - 0.5 # White noise
+        v = v * 4 + noise * 0.06
 
         # バイナリに16ビットの整数に変換して保存
         arr = (v * 32767).astype(np.int16)
