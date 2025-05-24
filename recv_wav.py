@@ -10,7 +10,8 @@ import subprocess
 import socket
 
 SAMPLE_SIZE = 2
-SAMPLE_RATE = 8000 # 48000
+DECIMATION_FACTOR=1
+SAMPLE_RATE = 48000 // DECIMATION_FACTOR # 8000 # 48000
 PATH = '/tmp/recv_wav_play.wav'
 
 # https://qiita.com/ninomiyt/items/001b496e067ebf216384
@@ -29,15 +30,34 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def on_close(self):
         print("on_close")
-        vol_voice = 0.25
+        vol_voice = 0.525
         vol_noise = 0.06
         vol_beep  = 0.1
         beep_freq = 880 # Hz
         v = np.array(self.voice)
         v.flatten()
 
+        # voice change
+        # https://zenn.dev/niisan/articles/0caef4a3cf1a9a
+        frame_rate = 48000
+        period = 32 # 16
+        move = 30
+        keep = 2
+        span = frame_rate // period
+        nfft = v.shape[1] // span
+        r_wave = np.reshape(v[0,:nfft*span], (nfft, span)) # convert to x[nfft][span]
+        fv = np.fft.fft(r_wave)
+        sfv = np.concatenate((fv[:,:keep], np.zeros((nfft,move)), fv[:,keep:]), 1)
+        temp = sfv[:, :span//2]
+        tempi = temp[:,::-1]
+        tempi.imag = -temp.imag[:,::-1]
+        temps = np.concatenate([temp, tempi], 1)
+        ifv = np.fft.ifft(temps).real
+        res = np.reshape(ifv, (-1))
+        v = np.array([res])
+
         # Lower quality voice with noise
-        v = v[::,::6] # 48kHz -> 8kHz
+        v = v[::,::DECIMATION_FACTOR] # 48kHz -> 48/DECIMATION_FACTOR kHz
         size = v.shape[1]
         vmax = np.max(v)
         noise = np.random.rand(1, size) - 0.5 # White noise
